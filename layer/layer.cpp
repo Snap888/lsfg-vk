@@ -147,12 +147,10 @@ static VkResult VKAPI_CALL lsfg_CreateDevice(
     bool hasComputeQueue = false;
     uint32_t computeFamily = UINT32_MAX;
 
-    // Find a compute-capable queue family on this physical device
+    // Find a compute-capable queue family on this physical device.
+    // Walk g_instanceDispatch to borrow any available instance dispatch.
     {
-        void* instKey = nullptr;
-        // Get instance from physicalDevice (workaround: walk instance map)
         uint32_t qfCount = 0;
-        // We'll ask via the instance dispatch that we stored; iterate to find
         std::lock_guard<std::mutex> lk(g_instanceLock);
         for (auto& [key, disp] : g_instanceDispatch) {
             if (disp.GetPhysicalDeviceQueueFamilyProperties) {

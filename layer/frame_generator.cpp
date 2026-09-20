@@ -203,6 +203,7 @@ VkResult FrameGenerator::AllocateSynthSlot(SynthFrame& slot) {
     VK_CHECK(d.AllocateCommandBuffers(m_ctx->device, &cbAI, &slot.cmd));
 
     slot.inFlight = false;
+    slot.valid    = true;
     return VK_SUCCESS;
 }
 
@@ -335,13 +336,11 @@ VkResult FrameGenerator::OnPresent(VkQueue queue, const VkPresentInfoKHR* pPrese
         return d.QueuePresentKHR(queue, pPresentInfo);
     }
 
-    // Get swapchain image handle
-    VkImage swapchainImage = VK_NULL_HANDLE;
+    // swapchainImage retrieval is handled by SwapchainManager in the full
+    // present-chain implementation (TODO: blit path). No-op here.
     {
         std::lock_guard<std::mutex> lk(g_deviceLock);
-        // images are registered in swapchain_manager via GetSwapchainImagesKHR
-        // We need to look them up — done below via a shared state approach
-        // (in full implementation, SwapchainState::images is accessible here)
+        (void)imageIndex; // used in the full blit path
     }
 
     // On the first real frame, we don't have a previous frame yet — just pass through
@@ -428,11 +427,8 @@ VkResult FrameGenerator::OnPresent(VkQueue queue, const VkPresentInfoKHR* pPrese
     // (Full implementation would use a dedicated present queue and ring buffer.)
     for (int si = 0; si < synthCount; si++) {
         SynthFrame& slot = m_synthFrames[si];
-        // We must wait for synthesis semaphore before presenting
-        VkPresentInfoKHR synthPresent = *pPresentInfo;
-        // Note: full implementation would blit slot.image → swapchain image
-        // before calling QueuePresentKHR for each synthetic frame.
-        // Abbreviated here to avoid duplicating swapchain image management.
+        // TODO (full blit path): blit slot.image → acquired swapchain image,
+        // wait on slot.readySem, then QueuePresentKHR for each synthetic frame.
         (void)slot;
     }
 

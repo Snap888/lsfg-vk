@@ -40,6 +40,7 @@ struct SynthFrame {
     VkCommandBuffer cmd       = VK_NULL_HANDLE;
 
     bool           inFlight   = false;
+    bool           valid      = false;  // true after AllocateSynthSlot succeeds
 };
 
 // ─── FrameGenerator ──────────────────────────────────────────────────────────
