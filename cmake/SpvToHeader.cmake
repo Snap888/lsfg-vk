@@ -1,11 +1,11 @@
-// ─── cmake/SpvToHeader.cmake ─────────────────────────────────────────────────
-// Converts a .spv binary into a C++ header with a uint32_t[] array.
-// Called automatically by CMakeLists.txt for each shader.
-//
-// Variables expected:
-//   INPUT     — path to .spv file
-//   OUTPUT    — path to output .h file
-//   VAR_NAME  — name of the C array variable
+# ─── cmake/SpvToHeader.cmake ─────────────────────────────────────────────────
+# Converts a .spv binary into a C++ header with a uint32_t[] array.
+# Called automatically by CMakeLists.txt for each shader.
+#
+# Variables expected:
+#   INPUT     — path to .spv file
+#   OUTPUT    — path to output .h file
+#   VAR_NAME  — name of the C array variable
 
 cmake_minimum_required(VERSION 3.10)
 
