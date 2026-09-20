@@ -1,0 +1,14 @@
+// android/build.gradle — Root build file for LSFG-VK Android project
+
+plugins {
+    id 'com.android.library' version '8.2.0' apply false
+}
+
+// ─── Project-wide Gradle settings ────────────────────────────────────────────
+ext {
+    compileSdk    = 34
+    minSdk        = 26           // Android 8.0 (Vulkan 1.1 guaranteed on API 26+)
+    targetSdk     = 34
+    ndkVersion    = "26.1.10909125"
+    cmakeVersion  = "3.22.1"
+}

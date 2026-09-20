@@ -1,0 +1,74 @@
+// android/app/build.gradle — LSFG-VK native library module
+
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    namespace         'com.lsfg.vk'
+    compileSdk        rootProject.ext.compileSdk
+    ndkVersion        rootProject.ext.ndkVersion
+
+    defaultConfig {
+        minSdk        rootProject.ext.minSdk
+        targetSdk     rootProject.ext.targetSdk
+
+        // Only ARM64 — our target platform
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags  '-std=c++17'
+                arguments '-DANDROID_STL=c++_shared',
+                          '-DANDROID_PLATFORM=android-26',
+                          '-DCMAKE_BUILD_TYPE=Release'
+                targets   'VkLayer_lsfg_frame_generation'
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path          '../CMakeLists.txt'
+            version       rootProject.ext.cmakeVersion
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled   false
+            // Strip debug symbols from the .so (CMakeLists.txt handles this too)
+        }
+        debug {
+            jniDebuggable   true
+        }
+    }
+
+    // Packaging: include the layer manifest alongside the .so
+    sourceSets {
+        main {
+            assets.srcDirs = ['../manifest']
+        }
+    }
+}
+
+// ─── Copy .so to a known output path for Winlator integration ────────────────
+task copyLayerSo(type: Copy) {
+    dependsOn 'assembleRelease'
+    from("${buildDir}/intermediates/stripped_native_libs/release/out/lib/arm64-v8a/") {
+        include 'libVkLayer_lsfg_frame_generation.so'
+    }
+    into "${rootDir}/../output/arm64-v8a/"
+}
+
+task copyManifest(type: Copy) {
+    dependsOn 'assembleRelease'
+    from('../manifest/') {
+        include 'VkLayer_lsfg_frame_generation.json'
+    }
+    into "${rootDir}/../output/"
+}
+
+assembleRelease.finalizedBy copyLayerSo, copyManifest

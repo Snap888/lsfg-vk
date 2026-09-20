@@ -1,0 +1,85 @@
+#version 450
+// SPDX-License-Identifier: MIT
+// LSFG-VK — UI mask detection pass
+//
+// Detects pixels that are likely part of the UI/HUD by measuring
+// high-frequency content (sharp edges, high contrast, uniform solid colours).
+// Outputs an 8-bit mask where 0 = interpolate freely, 255 = use original pixel.
+//
+// Bindings:
+//   0 = current real frame (sampler2D)
+//   1 = output mask image (storage, r8)
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform sampler2D u_curr;
+layout(set = 0, binding = 1, r8) uniform writeonly image2D u_mask;
+
+layout(push_constant) uniform PushConst {
+    uint  width;
+    uint  height;
+    float t;
+    uint  unused;
+} pc;
+
+float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+void main() {
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    if (coord.x >= int(pc.width) || coord.y >= int(pc.height)) return;
+
+    vec2 invSz = 1.0 / vec2(pc.width, pc.height);
+    vec2 uv    = (vec2(coord) + 0.5) * invSz;
+
+    float tx = invSz.x;
+    float ty = invSz.y;
+
+    // ── Sobel edge detection ──────────────────────────────────────────────────
+    float tl = luma(texture(u_curr, uv + vec2(-tx, -ty)).rgb);
+    float tc = luma(texture(u_curr, uv + vec2(  0, -ty)).rgb);
+    float tr = luma(texture(u_curr, uv + vec2( tx, -ty)).rgb);
+    float ml = luma(texture(u_curr, uv + vec2(-tx,   0)).rgb);
+    float mr = luma(texture(u_curr, uv + vec2( tx,   0)).rgb);
+    float bl = luma(texture(u_curr, uv + vec2(-tx,  ty)).rgb);
+    float bc = luma(texture(u_curr, uv + vec2(  0,  ty)).rgb);
+    float br = luma(texture(u_curr, uv + vec2( tx,  ty)).rgb);
+
+    float gx = -tl - 2.0*ml - bl + tr + 2.0*mr + br;
+    float gy = -tl - 2.0*tc - tr + bl + 2.0*bc + br;
+    float edge = sqrt(gx*gx + gy*gy);
+
+    // ── High-saturation detection (health bars, skill icons) ─────────────────
+    vec3 rgb = texture(u_curr, uv).rgb;
+    float maxC = max(rgb.r, max(rgb.g, rgb.b));
+    float minC = min(rgb.r, min(rgb.g, rgb.b));
+    float sat  = (maxC > 0.001) ? (maxC - minC) / maxC : 0.0;
+
+    // ── Combine ───────────────────────────────────────────────────────────────
+    // High edge OR high saturation → likely UI element
+    float edgeThresh = 0.15;
+    float satThresh  = 0.85;
+    float maskVal    = 0.0;
+    if (edge > edgeThresh) maskVal = edge;
+    if (sat  > satThresh)  maskVal = max(maskVal, sat);
+
+    maskVal = clamp(maskVal, 0.0, 1.0);
+
+    // Slight dilation (box blur in the same pass via sampling)
+    // — saves a separate pass on mobile GPU (tile-based architecture friendly)
+    float dilated = maskVal;
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            if (dx == 0 && dy == 0) continue;
+            vec2 sampleUV = uv + vec2(dx, dy) * invSz;
+            float sampleEdge = length(vec2(
+                -luma(texture(u_curr, sampleUV + vec2(-tx, 0)).rgb)
+                + luma(texture(u_curr, sampleUV + vec2( tx, 0)).rgb),
+                -luma(texture(u_curr, sampleUV + vec2(0, -ty)).rgb)
+                + luma(texture(u_curr, sampleUV + vec2(0,  ty)).rgb)
+            ));
+            dilated = max(dilated, clamp(sampleEdge - edgeThresh + 0.05, 0.0, 1.0));
+        }
+    }
+
+    imageStore(u_mask, coord, vec4(dilated, 0.0, 0.0, 0.0));
+}

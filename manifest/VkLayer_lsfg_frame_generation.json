@@ -1,0 +1,19 @@
+{
+    "file_format_version": "1.0.0",
+    "layer": {
+        "name": "VK_LAYER_LSFG_frame_generation",
+        "type": "GLOBAL",
+        "library_path": "libVkLayer_lsfg_frame_generation.so",
+        "api_version": "1.1.0",
+        "implementation_version": "1",
+        "description": "LSFG-VK Frame Generation Layer — optical-flow based frame interpolation (2x/3x/4x) for Android/Winlator",
+        "instance_extensions": [],
+        "device_extensions": [],
+        "enable_environment": {
+            "LSFG_ENABLE": "1"
+        },
+        "disable_environment": {
+            "LSFG_DISABLE": "1"
+        }
+    }
+}

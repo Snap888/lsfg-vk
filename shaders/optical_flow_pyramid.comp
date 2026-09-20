@@ -1,0 +1,38 @@
+#version 450
+// SPDX-License-Identifier: MIT
+// LSFG-VK — Gaussian pyramid downscale pass
+// Input: sampled colour image (any resolution)
+// Output: storage image at 0.5x resolution
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform sampler2D u_src;
+layout(set = 0, binding = 1, rgba8) uniform writeonly image2D u_dst;
+
+layout(push_constant) uniform PushConst {
+    uint src_width;
+    uint src_height;
+    uint dst_width;
+    uint dst_height;
+} pc;
+
+// 5-tap Gaussian kernel (separable approximation via 2x2 weighted bilinear)
+// Using 4 bilinear taps to approximate a Gaussian blur + downsample in one pass.
+void main() {
+    ivec2 dstCoord = ivec2(gl_GlobalInvocationID.xy);
+    if (dstCoord.x >= int(pc.dst_width) || dstCoord.y >= int(pc.dst_height)) return;
+
+    // Map dst pixel centre to src UV
+    vec2 dstUV = (vec2(dstCoord) + 0.5) / vec2(pc.dst_width, pc.dst_height);
+
+    // 4-tap bilinear samples offset by ±0.5/src_size to create Gaussian weight
+    float texelW = 1.0 / float(pc.src_width);
+    float texelH = 1.0 / float(pc.src_height);
+
+    vec4 c  = texture(u_src, dstUV + vec2(-texelW, -texelH)) * 0.25
+            + texture(u_src, dstUV + vec2( texelW, -texelH)) * 0.25
+            + texture(u_src, dstUV + vec2(-texelW,  texelH)) * 0.25
+            + texture(u_src, dstUV + vec2( texelW,  texelH)) * 0.25;
+
+    imageStore(u_dst, dstCoord, c);
+}
