@@ -78,9 +78,13 @@ jobs:
           SO=build/libVkLayer_lsfg_frame_generation.so
           ls -lh $SO
           file $SO
-          # Проверяем экспорты
+          
+          # Проверяем экспорты. 
+          # ВАЖНО: флаг --dynamic обязателен для Release/stripped библиотек, 
+          # так как он проверяет таблицу динамических символов (.dynsym), 
+          # которая используется загрузчиком Vulkan.
           $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm \
-            --defined-only --extern-only $SO | grep -E "vkNegotiate|vkGetInstance"
+            --dynamic --defined-only --extern-only $SO | grep -E "vkNegotiate|vkGetInstance"
 
       - name: Upload .so artifact
         uses: actions/upload-artifact@v4
@@ -167,4 +171,8 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| libVkLayer_lsfg_frame_generation.so | $(du -sh app/src/main/jniLibs/arm64-v8a/libVkLayer_lsfg_frame_generation.so | cut -f1) |" >> $GITHUB_STEP_SUMMARY
           APK=$(ls app/build/outputs/apk/standard/debug/*.apk 2>/dev/null | head -1)
-          echo "| WinNative APK | $(du -sh $APK | cut -f1) |" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$APK" ]; then
+            echo "| WinNative APK | $(du -sh $APK | cut -f1) |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| WinNative APK | Not found |" >> $GITHUB_STEP_SUMMARY
+          fi
