@@ -27,6 +27,12 @@ jobs:
           echo "NDK_CMAKE=$ANDROID_SDK_ROOT/cmake/3.22.1/bin/cmake" >> $GITHUB_ENV
           echo "NDK_NINJA=$ANDROID_SDK_ROOT/cmake/3.22.1/bin/ninja" >> $GITHUB_ENV
 
+      - name: Get Vulkan Headers (includes vk_layer.h for layer development)
+        run: |
+          git clone --depth=1 --branch v1.3.268 \
+            https://github.com/KhronosGroup/Vulkan-Headers /tmp/vulkan-headers
+          echo "VULKAN_HEADERS_DIR=/tmp/vulkan-headers/include" >> $GITHUB_ENV
+
       - name: Install glslangValidator
         run: |
           sudo apt-get update -qq
@@ -46,7 +52,8 @@ jobs:
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26 \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_MAKE_PROGRAM=$NDK_NINJA
+            -DCMAKE_MAKE_PROGRAM=$NDK_NINJA \
+            -DCMAKE_CXX_FLAGS="-I$VULKAN_HEADERS_DIR"
 
       - name: Build .so
         run: $NDK_CMAKE --build build --parallel $(nproc)
